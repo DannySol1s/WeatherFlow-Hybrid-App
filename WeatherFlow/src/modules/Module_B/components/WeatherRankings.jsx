@@ -165,7 +165,7 @@ export default function WeatherRankings() {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
             <h3 className="text-xl font-bold bg-gradient-to-r from-white to-premium-300 bg-clip-text text-transparent">
-              Top 5 {mode === 'global' ? 'Mundial' : selectedCountry ? `en ${selectedCountry.name}` : ''}
+              Top 5 {mode === 'global' ? 'Mundial' : selectedCountry ? `en ${selectedCountry.esName}` : ''}
             </h3>
           </div>
           
@@ -207,7 +207,7 @@ export default function WeatherRankings() {
           <div className="h-full flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
             <p className="text-premium-400 text-sm animate-pulse text-center space-y-2">
-              <span>{geoLoading ? `Consultando ciudades en ${selectedCountry?.name}...` : 'Analizando datos meteorológicos...'}</span>
+              <span>{geoLoading ? `Consultando ciudades en ${selectedCountry?.esName}...` : 'Analizando datos meteorológicos...'}</span>
               {!geoLoading && loading && mode === 'country' && <span className="block text-[10px] opacity-60 italic">Esto puede tardar unos segundos</span>}
             </p>
           </div>

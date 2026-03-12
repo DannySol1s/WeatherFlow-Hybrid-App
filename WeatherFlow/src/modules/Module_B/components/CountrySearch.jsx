@@ -15,8 +15,9 @@ export default function CountrySearch({ onSelectCountry }) {
       return;
     }
     
-    // Filtramos sobre la lista de COUNTRIES (que ahora está en inglés)
+    // Filtramos sobre la lista de COUNTRIES por nombre en español o código
     const filtered = COUNTRIES.filter(country => 
+      country.esName.toLowerCase().includes(query.toLowerCase()) ||
       country.name.toLowerCase().includes(query.toLowerCase()) ||
       country.code.toLowerCase().includes(query.toLowerCase())
     ).slice(0, 5);
@@ -36,7 +37,7 @@ export default function CountrySearch({ onSelectCountry }) {
   }, []);
 
   const handleSelect = (country) => {
-    setQuery(country.name);
+    setQuery(country.esName);
     setSuggestions([]);
     setIsOpen(false);
     onSelectCountry(country);
@@ -63,7 +64,7 @@ export default function CountrySearch({ onSelectCountry }) {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Busca un país (en inglés)..."
+          placeholder="Busca un país..."
           className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-2xl pl-12 pr-12 py-3 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 outline-none transition-all backdrop-blur-md"
         />
 
@@ -91,7 +92,7 @@ export default function CountrySearch({ onSelectCountry }) {
                   <MapPin className="w-4 h-4 text-purple-400" />
                 </div>
                 <div>
-                  <div className="text-white font-medium">{country.name}</div>
+                  <div className="text-white font-medium">{country.esName}</div>
                   <div className="text-[10px] text-premium-400 font-bold uppercase tracking-widest">{country.code}</div>
                 </div>
               </button>

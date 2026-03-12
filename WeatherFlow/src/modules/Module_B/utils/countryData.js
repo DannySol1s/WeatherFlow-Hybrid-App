@@ -1,30 +1,31 @@
 /**
  * Lista optimizada de países y sus códigos ISO.
- * Las ciudades ahora se obtienen dinámicamente vía API geográfica.
+ * name: Nombre en inglés (usado para la API de geografía).
+ * esName: Nombre en español (usado para la interfaz de usuario).
  */
 
 export const COUNTRIES = [
-  { name: 'Mexico', code: 'MX' },
-  { name: 'Spain', code: 'ES' },
-  { name: 'United States', code: 'US' },
-  { name: 'Argentina', code: 'AR' },
-  { name: 'Colombia', code: 'CO' },
-  { name: 'Chile', code: 'CL' },
-  { name: 'Peru', code: 'PE' },
-  { name: 'Brazil', code: 'BR' },
-  { name: 'Canada', code: 'CA' },
-  { name: 'France', code: 'FR' },
-  { name: 'Germany', code: 'DE' },
-  { name: 'Italy', code: 'IT' },
-  { name: 'United Kingdom', code: 'GB' },
-  { name: 'Japan', code: 'JP' },
-  { name: 'China', code: 'CN' },
-  { name: 'Australia', code: 'AU' },
-  { name: 'India', code: 'IN' },
-  { name: 'Portugal', code: 'PT' },
-  { name: 'Netherlands', code: 'NL' },
-  { name: 'Switzerland', code: 'CH' }
-].sort((a, b) => a.name.localeCompare(b.name));
+  { name: 'Mexico', esName: 'México', code: 'MX' },
+  { name: 'Spain', esName: 'España', code: 'ES' },
+  { name: 'United States', esName: 'Estados Unidos', code: 'US' },
+  { name: 'Argentina', esName: 'Argentina', code: 'AR' },
+  { name: 'Colombia', esName: 'Colombia', code: 'CO' },
+  { name: 'Chile', esName: 'Chile', code: 'CL' },
+  { name: 'Peru', esName: 'Perú', code: 'PE' },
+  { name: 'Brazil', esName: 'Brasil', code: 'BR' },
+  { name: 'Canada', esName: 'Canadá', code: 'CA' },
+  { name: 'France', esName: 'Francia', code: 'FR' },
+  { name: 'Germany', esName: 'Alemania', code: 'DE' },
+  { name: 'Italy', esName: 'Italia', code: 'IT' },
+  { name: 'United Kingdom', esName: 'Reino Unido', code: 'GB' },
+  { name: 'Japan', esName: 'Japón', code: 'JP' },
+  { name: 'China', esName: 'China', code: 'CN' },
+  { name: 'Australia', esName: 'Australia', code: 'AU' },
+  { name: 'India', esName: 'India', code: 'IN' },
+  { name: 'Portugal', esName: 'Portugal', code: 'PT' },
+  { name: 'Netherlands', esName: 'Países Bajos', code: 'NL' },
+  { name: 'Switzerland', esName: 'Suiza', code: 'CH' }
+].sort((a, b) => a.esName.localeCompare(b.esName));
 
 export const GLOBAL_CITIES = [
   'Mexico City', 'New York', 'Tokyo', 'London', 'Paris', 
