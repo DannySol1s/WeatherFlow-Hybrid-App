@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { BarChart3, Map, Activity, Globe, Loader2 } from 'lucide-react';
+import { Map, Loader2 } from 'lucide-react';
 import ModuleTemplate from '../../components/ModuleTemplate';
 import { supabase } from '../../lib/supabase';
+import WeatherRankings from './components/WeatherRankings';
 
 export default function StatsModule() {
     const [stats, setStats] = useState([]);
@@ -30,41 +31,8 @@ export default function StatsModule() {
         <ModuleTemplate title="Módulo Stats" moduleColor="bg-purple-500/20">
             <div className="max-w-5xl mx-auto">
 
-                {/* Superior: KPIs */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="glass-card border-purple-500/30 bg-gradient-to-br from-purple-500/10 to-fuchsia-500/5 hover:from-purple-500/20 transition-colors">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-purple-500/20 rounded-xl">
-                                <Activity className="w-6 h-6 text-purple-400" />
-                            </div>
-                            <h3 className="text-premium-200">Total Consultas</h3>
-                        </div>
-                        <p className="text-4xl font-bold mt-4">{stats.length > 0 ? '10+' : '0'}</p>
-                    </div>
-
-                    <div className="glass-card border-pink-500/30 bg-gradient-to-br from-pink-500/10 to-rose-500/5 hover:from-pink-500/20 transition-colors">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-pink-500/20 rounded-xl">
-                                <Globe className="w-6 h-6 text-pink-400" />
-                            </div>
-                            <h3 className="text-premium-200">Integración GIN</h3>
-                        </div>
-                        <p className="text-xl font-medium mt-4 text-premium-100 italic">Optimizando JSONB</p>
-                    </div>
-
-                    <div className="glass-card border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-orange-500/5 hover:from-amber-500/20 transition-colors">
-                        <div className="flex items-center gap-4 mb-2">
-                            <div className="p-3 bg-amber-500/20 rounded-xl">
-                                <BarChart3 className="w-6 h-6 text-amber-400" />
-                            </div>
-                            <h3 className="text-premium-200">Estado</h3>
-                        </div>
-                        <p className="text-2xl font-bold mt-4 flex items-center gap-2">
-                            <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                            Conectado
-                        </p>
-                    </div>
-                </div>
+                {/* Rankings Climáticos Globales "En Vivo" (Reemplaza KPIs) */}
+                <WeatherRankings />
 
                 {/* Inferior: Historial Visual */}
                 <div className="glass-card border-white/10 p-0 overflow-hidden">
