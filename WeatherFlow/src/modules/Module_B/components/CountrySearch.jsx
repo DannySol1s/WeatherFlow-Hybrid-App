@@ -1,29 +1,68 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, MapPin, X } from 'lucide-react';
-import { COUNTRIES } from '../utils/countryData';
 
 export default function CountrySearch({ onSelectCountry }) {
   const [query, setQuery] = useState('');
+  const [allCountries, setAllCountries] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const dropdownRef = useRef(null);
+
+  // Cargar todos los países del mundo al montar el componente
+  useEffect(() => {
+    const fetchAllCountries = async () => {
+      setIsSyncing(true);
+      try {
+        const response = await fetch('https://countriesnow.space/api/v0.1/countries/iso');
+        const result = await response.json();
+        
+        if (!result.error) {
+          // Usamos Intl.DisplayNames para obtener los nombres en español automáticamente
+          const regionNames = new Intl.DisplayNames(['es'], { type: 'region' });
+          
+          const processedCountries = result.data.map(c => {
+            let esName = c.name;
+            try {
+              // Intentamos obtener la traducción oficial por código ISO
+              esName = regionNames.of(c.Iso2) || c.name;
+            } catch (e) {
+              // Fallback al nombre original si falla
+            }
+            return {
+              name: c.name,    // Usado para la API interna (inglés)
+              esName: esName,  // Usado para mostrar al usuario (español)
+              code: c.Iso2
+            };
+          });
+
+          setAllCountries(processedCountries);
+        }
+      } catch (error) {
+        console.error("Error fetching global country list:", error);
+      } finally {
+        setIsSyncing(false);
+      }
+    };
+
+    fetchAllCountries();
+  }, []);
 
   // Filtrar países según el input
   useEffect(() => {
-    if (query.trim() === '') {
+    if (query.trim().length < 1 || allCountries.length === 0) {
       setSuggestions([]);
       return;
     }
     
-    // Filtramos sobre la lista de COUNTRIES por nombre en español o código
-    const filtered = COUNTRIES.filter(country => 
+    const filtered = allCountries.filter(country => 
       country.esName.toLowerCase().includes(query.toLowerCase()) ||
       country.name.toLowerCase().includes(query.toLowerCase()) ||
       country.code.toLowerCase().includes(query.toLowerCase())
     ).slice(0, 5);
     
     setSuggestions(filtered);
-  }, [query]);
+  }, [query, allCountries]);
 
   // Cerrar el dropdown al hacer clic fuera
   useEffect(() => {
@@ -64,8 +103,9 @@ export default function CountrySearch({ onSelectCountry }) {
             setIsOpen(true);
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="Busca un país..."
+          placeholder={isSyncing ? "Sincronizando países..." : "Busca cualquier país del mundo..."}
           className="w-full bg-white/5 border border-white/10 text-white text-sm rounded-2xl pl-12 pr-12 py-3 focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500/50 outline-none transition-all backdrop-blur-md"
+          disabled={isSyncing}
         />
 
         {query && (

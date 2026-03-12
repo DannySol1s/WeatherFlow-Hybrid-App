@@ -1,7 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Thermometer, Wind, Droplets, Cloud, ChevronUp, ChevronDown, Loader2, Globe, MapPin, Search } from 'lucide-react';
-import { GLOBAL_CITIES } from '../utils/countryData';
 import CountrySearch from './CountrySearch';
+
+const GLOBAL_CITIES = [
+  'Mexico City', 'New York', 'Tokyo', 'London', 'Paris', 
+  'Dubai', 'Sydney', 'Moscow', 'Rio de Janeiro', 'Cairo',
+  'Beijing', 'Mumbai', 'Berlin', 'Madrid', 'Toronto'
+];
 
 const API_KEY = '9881114244119304be93da42d1185931';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
