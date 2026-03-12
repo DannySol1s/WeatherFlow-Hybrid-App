@@ -1,39 +1,90 @@
-import { useState, useEffect } from 'react';
-import { Thermometer, Wind, Droplets, Cloud, ChevronUp, ChevronDown, Loader2, Globe } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Thermometer, Wind, Droplets, Cloud, ChevronUp, ChevronDown, Loader2, Globe, MapPin, Search } from 'lucide-react';
+import { GLOBAL_CITIES } from '../utils/countryData';
+import CountrySearch from './CountrySearch';
 
 const API_KEY = '9881114244119304be93da42d1185931';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
-
-const CITIES = [
-  'Mexico City', 'New York', 'Tokyo', 'London', 'Paris', 
-  'Dubai', 'Sydney', 'Moscow', 'Rio de Janeiro', 'Cairo',
-  'Beijing', 'Mumbai', 'Berlin', 'Madrid', 'Toronto'
-];
+const GEO_API_URL = 'https://countriesnow.space/api/v0.1/countries/cities';
 
 export default function WeatherRankings() {
   const [weatherData, setWeatherData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [category, setCategory] = useState('temp'); // temp, wind, humidity, sky
-  const [subCategory, setSubCategory] = useState('high'); // high (hot/strong/humid), low (cold/calm/dry)
+  const [subCategory, setSubCategory] = useState('high'); // high, low
+  const [mode, setMode] = useState('global'); // global, country
+  const [selectedCountry, setSelectedCountry] = useState(null);
 
-  useEffect(() => {
-    fetchAllWeatherData();
-  }, []);
+  const fetchAllWeatherData = useCallback(async (citiesToFetch) => {
+    if (!citiesToFetch || citiesToFetch.length === 0) {
+      setWeatherData([]);
+      setLoading(false);
+      return;
+    }
 
-  const fetchAllWeatherData = async () => {
     setLoading(true);
     try {
-      const promises = CITIES.map(city => 
+      // Limitamos a un máximo de 10 ciudades para optimizar peticiones y velocidad
+      const limitedCities = citiesToFetch.slice(0, 10);
+      
+      const promises = limitedCities.map(city => 
         fetch(`${BASE_URL}/weather?q=${city}&appid=${API_KEY}&units=metric&lang=es`)
           .then(res => res.json())
       );
       const results = await Promise.all(promises);
+      // Solo nos quedamos con respuestas exitosas (cod 200)
       setWeatherData(results.filter(data => data.cod === 200));
     } catch (error) {
       console.error("Error fetching ranking data:", error);
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  const fetchCitiesByCountry = async (countryName) => {
+    setGeoLoading(true);
+    try {
+      // CountriesNow requiere el nombre del país en inglés (que ya tenemos en countryData.js)
+      const response = await fetch(GEO_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ country: countryName })
+      });
+      const result = await response.json();
+      
+      if (!result.error && result.data) {
+        // Devolvemos la lista de ciudades. La API suele devolverlas por orden de importancia/alfabético.
+        return result.data;
+      }
+      return [];
+    } catch (error) {
+      console.error("Error fetching country cities:", error);
+      return [];
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  // Efecto que reacciona al cambio de modo o país seleccionado
+  useEffect(() => {
+    const loadData = async () => {
+      if (mode === 'global') {
+        fetchAllWeatherData(GLOBAL_CITIES);
+      } else if (mode === 'country' && selectedCountry) {
+        const countryCities = await fetchCitiesByCountry(selectedCountry.name);
+        fetchAllWeatherData(countryCities);
+      } else {
+        setWeatherData([]);
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [mode, selectedCountry, fetchAllWeatherData]);
+
+  const handleCountrySelect = (country) => {
+    setSelectedCountry(country);
   };
 
   const getRankedData = () => {
@@ -50,7 +101,6 @@ export default function WeatherRankings() {
         sorted.sort((a, b) => subCategory === 'high' ? b.main.humidity - a.main.humidity : a.main.humidity - b.main.humidity);
         break;
       case 'sky':
-        // Cloud coverage percentage
         sorted.sort((a, b) => subCategory === 'high' ? b.clouds.all - a.clouds.all : a.clouds.all - b.clouds.all);
         break;
       default:
@@ -84,16 +134,38 @@ export default function WeatherRankings() {
   };
 
   return (
-    <div className="glass-card border-purple-500/20 bg-black/40 p-0 overflow-hidden mb-8">
-      {/* Header con Filtros */}
-      <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-transparent">
+    <div className="glass-card border-purple-500/20 bg-black/40 p-0 overflow-hidden mb-8 shadow-2xl transition-all duration-500">
+      {/* Selector de Modalidad (Toggle) */}
+      <div className="px-6 pt-6 flex justify-center">
+        <div className="flex bg-white/5 p-1 rounded-2xl border border-white/10 w-full max-w-xs shadow-inner">
+          <button 
+            onClick={() => setMode('global')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl transition-all text-sm font-bold ${mode === 'global' ? 'bg-purple-500/20 text-white border border-purple-500/20 shadow-lg' : 'text-premium-400 hover:text-white'}`}
+          >
+            <Globe className="w-4 h-4" /> Global
+          </button>
+          <button 
+            onClick={() => setMode('country')}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl transition-all text-sm font-bold ${mode === 'country' ? 'bg-purple-500/20 text-white border border-purple-500/20 shadow-lg' : 'text-premium-400 hover:text-white'}`}
+          >
+            <MapPin className="w-4 h-4" /> Por País
+          </button>
+        </div>
+      </div>
+
+      {/* Buscador de País (Solo si mode === 'country') */}
+      {mode === 'country' && (
+        <div className="px-6 pt-6 flex justify-center animate-in fade-in slide-in-from-top-4 duration-300">
+          <CountrySearch onSelectCountry={handleCountrySelect} />
+        </div>
+      )}
+
+      {/* Header con Filtros de Categoría */}
+      <div className="p-6 border-b border-white/10 bg-gradient-to-r from-purple-500/10 to-transparent mt-2">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-purple-500/20 rounded-lg">
-              <Globe className="w-5 h-5 text-purple-400" />
-            </div>
             <h3 className="text-xl font-bold bg-gradient-to-r from-white to-premium-300 bg-clip-text text-transparent">
-              Rankings Climáticos Globales
+              Top 5 {mode === 'global' ? 'Mundial' : selectedCountry ? `en ${selectedCountry.name}` : ''}
             </h3>
           </div>
           
@@ -130,19 +202,34 @@ export default function WeatherRankings() {
       </div>
 
       {/* Lista del Ranking */}
-      <div className="p-6">
-        {loading ? (
-          <div className="py-12 flex flex-col items-center gap-4">
+      <div className="p-6 h-[450px]">
+        {(loading || geoLoading) ? (
+          <div className="h-full flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
-            <p className="text-premium-400 text-sm animate-pulse">Consultando estaciones meteorológicas globales...</p>
+            <p className="text-premium-400 text-sm animate-pulse text-center space-y-2">
+              <span>{geoLoading ? `Consultando ciudades en ${selectedCountry?.name}...` : 'Analizando datos meteorológicos...'}</span>
+              {!geoLoading && loading && mode === 'country' && <span className="block text-[10px] opacity-60 italic">Esto puede tardar unos segundos</span>}
+            </p>
+          </div>
+        ) : mode === 'country' && !selectedCountry ? (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
+            <div className="p-4 bg-purple-500/10 rounded-full">
+              <Search className="w-8 h-8 text-purple-400" />
+            </div>
+            <p className="text-premium-300 font-medium">Busca un país para descubrir sus extremos climáticos.</p>
+          </div>
+        ) : weatherData.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-premium-400 space-y-2">
+            <Search className="w-12 h-12 opacity-10" />
+            <p className="text-sm">No pudimos obtener datos para este país.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            <div className="flex justify-between items-center mb-4 px-2">
+          <div className="space-y-4 animate-in fade-in duration-500">
+            <div className="flex justify-between items-center mb-2 px-2">
               <span className="text-xs font-bold text-premium-500 uppercase tracking-widest">
-                Top 5: {getSubLabel()}
+                Ranking: {getSubLabel()}
               </span>
-              <span className="text-xs text-premium-500 italic">Datos en tiempo real</span>
+              <span className="text-xs text-premium-500 italic">Vía OpenWeather</span>
             </div>
             
             {getRankedData().map((city, index) => (
@@ -151,7 +238,7 @@ export default function WeatherRankings() {
                 className="group relative flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-2xl transition-all duration-300"
               >
                 <div className="flex items-center gap-4">
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${index === 0 ? 'bg-amber-500/20 text-amber-500' : index === 1 ? 'bg-premium-200/20 text-premium-200' : 'bg-white/10 text-premium-400'}`}>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm ${index === 0 ? 'bg-amber-500/20 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : index === 1 ? 'bg-gray-400/20 text-gray-300' : 'bg-white/10 text-premium-400'}`}>
                     #{index + 1}
                   </div>
                   <div>
@@ -164,10 +251,8 @@ export default function WeatherRankings() {
                   <div className={`text-2xl font-black tracking-tight ${category === 'temp' && subCategory === 'high' ? 'text-orange-400' : category === 'temp' && subCategory === 'low' ? 'text-blue-400' : 'text-premium-100'}`}>
                     {getValueDisplay(city)}
                   </div>
-                  <div className="text-[10px] text-premium-500 uppercase font-bold">Valor Actual</div>
+                  <div className="text-[10px] text-premium-500 uppercase font-bold">Valor</div>
                 </div>
-
-                {/* Decoración hover */}
                 <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/5 to-purple-500/0 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity pointer-events-none"></div>
               </div>
             ))}
