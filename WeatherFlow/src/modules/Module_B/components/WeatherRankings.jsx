@@ -1,17 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Thermometer, Wind, Droplets, Cloud, ChevronUp, ChevronDown, Loader2, Globe, MapPin, Search } from 'lucide-react';
 import CountrySearch from './CountrySearch';
-
-const GLOBAL_CITIES = [
-  'Mexico City', 'New York', 'Tokyo', 'London', 'Paris', 
-  'Dubai', 'Sydney', 'Moscow', 'Rio de Janeiro', 'Cairo',
-  'Beijing', 'Mumbai', 'Berlin', 'Madrid', 'Toronto',
-  'Rome', 'Seoul', 'Buenos Aires', 'Jakarta', 'Istanbul',
-  'Sao Paulo', 'Chicago', 'Los Angeles', 'Bangkok', 'Osaka',
-  'Lagos', 'Karachi', 'Kinshasa', 'Lima', 'Bogota',
-  'Chennai', 'Bangalore', 'Hong Kong', 'Singapore', 'Kuala Lumpur',
-  'Santiago', 'Riyadh', 'Miami', 'Cape Town', 'Nairobi'
-];
+import { WORLD_CAPITALS } from '../utils/worldCapitals';
 
 const API_KEY = '9881114244119304be93da42d1185931';
 const BASE_URL = 'https://api.openweathermap.org/data/2.5';
@@ -36,7 +26,7 @@ export default function WeatherRankings() {
 
     setLoading(true);
     let allProcessedData = [];
-    const CHUNK_SIZE = 10; // Paginación de peticiones para evitar límites de API (Rate Limits)
+    const CHUNK_SIZE = 20; // Paginación optimizada a bloques de 20 para menor latencia (rate limit tolerance)
     try {
       for (let i = 0; i < citiesToFetch.length; i += CHUNK_SIZE) {
         const chunk = citiesToFetch.slice(i, i + CHUNK_SIZE);
@@ -46,11 +36,16 @@ export default function WeatherRankings() {
           total: citiesToFetch.length 
         });
 
-        const promises = chunk.map(city => 
-          fetch(`${BASE_URL}/weather?q=${city}&appid=${API_KEY}&units=metric&lang=es`)
+        const promises = chunk.map(loc => {
+          const isObj = typeof loc === 'object';
+          const queryCity = isObj ? loc.city : loc;
+          const displayCountry = isObj ? loc.country : null;
+
+          return fetch(`${BASE_URL}/weather?q=${queryCity}&appid=${API_KEY}&units=metric&lang=es`)
             .then(res => res.json())
-            .catch(() => null)
-        );
+            .then(data => ({ ...data, _displayCountry: displayCountry, _queryCity: queryCity }))
+            .catch(() => null);
+        });
         
         const results = await Promise.all(promises);
         
@@ -59,7 +54,8 @@ export default function WeatherRankings() {
           .filter(data => data && data.cod === 200)
           .map(city => ({
             id: city.id || Math.random(),
-            name: city.name,
+            name: city.name || city._queryCity,
+            displayCountry: city._displayCountry,
             country: city.sys?.country || '',
             temp: city.main?.temp || 0,
             windSpeed: city.wind?.speed || 0,
@@ -70,9 +66,9 @@ export default function WeatherRankings() {
 
         allProcessedData = [...allProcessedData, ...chunkProcessed];
 
-        // Delay para evitar Rate Limit excedido
+        // Delay ultracorto (50ms) para evitar Rate Limit superado y a su vez completarlo en < 2 segundos
         if (i + CHUNK_SIZE < citiesToFetch.length) {
-          await new Promise(resolve => setTimeout(resolve, 300));
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
       
@@ -112,7 +108,7 @@ export default function WeatherRankings() {
   useEffect(() => {
     const loadData = async () => {
       if (mode === 'global') {
-        fetchAllWeatherData(GLOBAL_CITIES);
+        fetchAllWeatherData(WORLD_CAPITALS);
       } else if (mode === 'country' && selectedCountry) {
         const countryStates = await fetchStatesByCountry(selectedCountry.name);
         fetchAllWeatherData(countryStates);
@@ -289,8 +285,12 @@ export default function WeatherRankings() {
                     #{index + 1}
                   </div>
                   <div>
-                    <h4 className="font-bold text-lg text-white group-hover:translate-x-1 transition-transform">{city.name}</h4>
-                    <p className="text-xs text-premium-400 uppercase tracking-tighter">{city.country} {city.country ? '·' : ''} {city.description}</p>
+                    <h4 className="font-bold text-lg text-white group-hover:translate-x-1 transition-transform">
+                      {mode === 'global' && city.displayCountry ? city.displayCountry.toUpperCase() : city.name}
+                    </h4>
+                    <p className="text-xs text-premium-400 uppercase tracking-tighter">
+                      {mode === 'global' && city.displayCountry ? `${city.name} · ${city.description}` : `${city.country} ${city.country ? '·' : ''} ${city.description}`}
+                    </p>
                   </div>
                 </div>
                 
