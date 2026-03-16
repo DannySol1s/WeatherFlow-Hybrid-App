@@ -5,7 +5,12 @@ import CountrySearch from './CountrySearch';
 const GLOBAL_CITIES = [
   'Mexico City', 'New York', 'Tokyo', 'London', 'Paris', 
   'Dubai', 'Sydney', 'Moscow', 'Rio de Janeiro', 'Cairo',
-  'Beijing', 'Mumbai', 'Berlin', 'Madrid', 'Toronto'
+  'Beijing', 'Mumbai', 'Berlin', 'Madrid', 'Toronto',
+  'Rome', 'Seoul', 'Buenos Aires', 'Jakarta', 'Istanbul',
+  'Sao Paulo', 'Chicago', 'Los Angeles', 'Bangkok', 'Osaka',
+  'Lagos', 'Karachi', 'Kinshasa', 'Lima', 'Bogota',
+  'Chennai', 'Bangalore', 'Hong Kong', 'Singapore', 'Kuala Lumpur',
+  'Santiago', 'Riyadh', 'Miami', 'Cape Town', 'Nairobi'
 ];
 
 const API_KEY = '9881114244119304be93da42d1185931';
@@ -16,6 +21,7 @@ export default function WeatherRankings() {
   const [weatherData, setWeatherData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [geoLoading, setGeoLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState({ current: 0, total: 0 });
   const [category, setCategory] = useState('temp'); // temp, wind, humidity, sky
   const [subCategory, setSubCategory] = useState('high'); // high, low
   const [mode, setMode] = useState('global'); // global, country
@@ -29,21 +35,53 @@ export default function WeatherRankings() {
     }
 
     setLoading(true);
+    let allProcessedData = [];
+    const CHUNK_SIZE = 10; // Paginación de peticiones para evitar límites de API (Rate Limits)
     try {
-      // Limitamos a un máximo de 10 ciudades para optimizar peticiones y velocidad
-      const limitedCities = citiesToFetch.slice(0, 10);
+      for (let i = 0; i < citiesToFetch.length; i += CHUNK_SIZE) {
+        const chunk = citiesToFetch.slice(i, i + CHUNK_SIZE);
+        
+        setLoadingProgress({ 
+          current: Math.min(i + CHUNK_SIZE, citiesToFetch.length), 
+          total: citiesToFetch.length 
+        });
+
+        const promises = chunk.map(city => 
+          fetch(`${BASE_URL}/weather?q=${city}&appid=${API_KEY}&units=metric&lang=es`)
+            .then(res => res.json())
+            .catch(() => null)
+        );
+        
+        const results = await Promise.all(promises);
+        
+        // Transformación y filtrado inmediato para no saturar memoria del navegador
+        const chunkProcessed = results
+          .filter(data => data && data.cod === 200)
+          .map(city => ({
+            id: city.id || Math.random(),
+            name: city.name,
+            country: city.sys?.country || '',
+            temp: city.main?.temp || 0,
+            windSpeed: city.wind?.speed || 0,
+            humidity: city.main?.humidity || 0,
+            clouds: city.clouds?.all || 0,
+            description: city.weather?.[0]?.description || ''
+          }));
+
+        allProcessedData = [...allProcessedData, ...chunkProcessed];
+
+        // Delay para evitar Rate Limit excedido
+        if (i + CHUNK_SIZE < citiesToFetch.length) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
       
-      const promises = limitedCities.map(city => 
-        fetch(`${BASE_URL}/weather?q=${city}&appid=${API_KEY}&units=metric&lang=es`)
-          .then(res => res.json())
-      );
-      const results = await Promise.all(promises);
-      // Solo nos quedamos con respuestas exitosas (cod 200)
-      setWeatherData(results.filter(data => data.cod === 200));
+      setWeatherData(allProcessedData);
     } catch (error) {
-      console.error("Error fetching ranking data:", error);
+      console.error("Error fetching massive ranking data:", error);
     } finally {
       setLoading(false);
+      setLoadingProgress({ current: 0, total: 0 });
     }
   }, []);
 
@@ -96,16 +134,16 @@ export default function WeatherRankings() {
 
     switch (category) {
       case 'temp':
-        sorted.sort((a, b) => subCategory === 'high' ? b.main.temp - a.main.temp : a.main.temp - b.main.temp);
+        sorted.sort((a, b) => subCategory === 'high' ? b.temp - a.temp : a.temp - b.temp);
         break;
       case 'wind':
-        sorted.sort((a, b) => subCategory === 'high' ? b.wind.speed - a.wind.speed : a.wind.speed - b.wind.speed);
+        sorted.sort((a, b) => subCategory === 'high' ? b.windSpeed - a.windSpeed : a.windSpeed - b.windSpeed);
         break;
       case 'humidity':
-        sorted.sort((a, b) => subCategory === 'high' ? b.main.humidity - a.main.humidity : a.main.humidity - b.main.humidity);
+        sorted.sort((a, b) => subCategory === 'high' ? b.humidity - a.humidity : a.humidity - b.humidity);
         break;
       case 'sky':
-        sorted.sort((a, b) => subCategory === 'high' ? b.clouds.all - a.clouds.all : a.clouds.all - b.clouds.all);
+        sorted.sort((a, b) => subCategory === 'high' ? b.clouds - a.clouds : a.clouds - b.clouds);
         break;
       default:
         break;
@@ -130,10 +168,10 @@ export default function WeatherRankings() {
   };
 
   const getValueDisplay = (cityData) => {
-    if (category === 'temp') return `${Math.round(cityData.main.temp)}°C`;
-    if (category === 'wind') return `${cityData.wind.speed} m/s`;
-    if (category === 'humidity') return `${cityData.main.humidity}%`;
-    if (category === 'sky') return `${cityData.clouds.all}% nubes`;
+    if (category === 'temp') return `${Math.round(cityData.temp)}°C`;
+    if (category === 'wind') return `${cityData.windSpeed} m/s`;
+    if (category === 'humidity') return `${cityData.humidity}%`;
+    if (category === 'sky') return `${cityData.clouds}% nubes`;
     return '';
   };
 
@@ -210,10 +248,15 @@ export default function WeatherRankings() {
         {(loading || geoLoading) ? (
           <div className="h-full flex flex-col items-center justify-center gap-4">
             <Loader2 className="w-10 h-10 animate-spin text-purple-500" />
-            <p className="text-premium-400 text-sm animate-pulse text-center space-y-2">
-              <span>{geoLoading ? `Consultando estados en ${selectedCountry?.esName}...` : 'Analizando datos meteorológicos...'}</span>
-              {!geoLoading && loading && mode === 'country' && <span className="block text-[10px] opacity-60 italic">Esto puede tardar unos segundos</span>}
-            </p>
+            <div className="text-premium-400 text-sm text-center space-y-2">
+              <span className="block animate-pulse">{geoLoading ? `Consultando base de datos geoespacial para ${selectedCountry?.esName}...` : 'Procesando set de datos climáticos masivos...'}</span>
+              {!geoLoading && loading && loadingProgress.total > 0 && (
+                <span className="block text-xs font-bold text-purple-400 bg-purple-500/10 px-3 py-1 rounded-full border border-purple-500/20 inline-block mt-2 shadow-[0_0_10px_rgba(168,85,247,0.2)]">
+                  Analizando {loadingProgress.current} de {loadingProgress.total} locaciones
+                </span>
+              )}
+              {!geoLoading && loading && mode === 'country' && <span className="block text-[10px] opacity-60 italic mt-1">Optimizando respuesta en el cliente para evitar latencia</span>}
+            </div>
           </div>
         ) : mode === 'country' && !selectedCountry ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
@@ -238,7 +281,7 @@ export default function WeatherRankings() {
             
             {getRankedData().map((city, index) => (
               <div 
-                key={city.id} 
+                key={`${city.id}-${index}`} 
                 className="group relative flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-2xl transition-all duration-300"
               >
                 <div className="flex items-center gap-4">
@@ -247,7 +290,7 @@ export default function WeatherRankings() {
                   </div>
                   <div>
                     <h4 className="font-bold text-lg text-white group-hover:translate-x-1 transition-transform">{city.name}</h4>
-                    <p className="text-xs text-premium-400 uppercase tracking-tighter">{city.sys.country} · {city.weather[0].description}</p>
+                    <p className="text-xs text-premium-400 uppercase tracking-tighter">{city.country} {city.country ? '·' : ''} {city.description}</p>
                   </div>
                 </div>
                 
