@@ -1,0 +1,5 @@
+{
+	"appId": "com.angelsolis.weatherflow",
+	"appName": "WeatherFlow",
+	"webDir": "dist"
+}
