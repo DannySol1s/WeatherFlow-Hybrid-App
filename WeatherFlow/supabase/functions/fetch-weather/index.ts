@@ -5,7 +5,7 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',                              // Servidor de pruebas web
   'http://localhost',                                   // Servidor en algunos móviles
   'capacitor://localhost',                              // Servidor de Capacitor (Android/iOS)
-  'https://weather-flow-hybrid-app.vercel.app',        // Producción en Vercel
+  'https://weatherflow-hybrid-app.vercel.app',         // Producción en Vercel
 ];
 
 function getCorsHeaders(req: Request) {
