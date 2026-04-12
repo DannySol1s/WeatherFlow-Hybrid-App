@@ -49,3 +49,20 @@ export const fetch5DayForecast = async (query, isCoords = false) => {
         isCoords
     });
 };
+
+/**
+ * Busca ciudades cercanas a unas coordenadas (Módulo Stats - modo Local).
+ * Equivale a /find?lat=&lon=&cnt= de OpenWeather.
+ */
+export const fetchNearby = async (lat, lon, cnt = 15) => {
+    return await invokeFetchWeather({ action: 'find_nearby', lat, lon, cnt });
+};
+
+/**
+ * Obtiene el clima de un lote de ciudades en una sola llamada a la Edge Function
+ * (Módulo Stats - modo Global y Por País).
+ * @param {Array<string|{city:string,country:string}>} cities
+ */
+export const fetchBulkWeather = async (cities) => {
+    return await invokeFetchWeather({ action: 'bulk_weather', cities });
+};

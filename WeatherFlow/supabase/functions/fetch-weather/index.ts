@@ -74,11 +74,52 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const body = await req.json();
 
-    // action can be 'current_city', 'current_coords', 'forecast'
-    const { action, city, lat, lon, moduleOwner, query, isCoords } = body;
+    // action can be 'current_city', 'current_coords', 'forecast', 'find_nearby', 'bulk_weather'
+    const { action, city, lat, lon, moduleOwner, query, isCoords, cnt, cities } = body;
 
     let apiUrl = '';
     const BASE_URL = 'https://api.openweathermap.org/data/2.5';
+
+    // --- Acción especial: bulk_weather (para Módulo Stats - Rankings globales/por país) ---
+    if (action === 'bulk_weather') {
+      if (!Array.isArray(cities) || cities.length === 0) {
+        throw new Error("bulk_weather requiere un array 'cities' no vacío");
+      }
+      const results = await Promise.all(
+        cities.map(async (loc: string | { city: string; country: string }) => {
+          const isObj = typeof loc === 'object';
+          const queryCity = isObj ? loc.city : loc;
+          const displayCountry = isObj ? (loc as { city: string; country: string }).country : null;
+          try {
+            const res = await fetch(
+              `${BASE_URL}/weather?q=${queryCity}&appid=${openweatherApiKey}&units=metric&lang=es`
+            );
+            if (!res.ok) return null;
+            const data = await res.json();
+            return { ...data, _displayCountry: displayCountry, _queryCity: queryCity };
+          } catch {
+            return null;
+          }
+        })
+      );
+      return new Response(JSON.stringify(results), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
+
+    // --- Acción especial: find_nearby (para Módulo Stats - modo Local) ---
+    if (action === 'find_nearby') {
+      const count = cnt ?? 15;
+      const nearbyUrl = `${BASE_URL}/find?lat=${lat}&lon=${lon}&cnt=${count}&appid=${openweatherApiKey}&units=metric&lang=es`;
+      const nearbyRes = await fetch(nearbyUrl);
+      if (!nearbyRes.ok) throw new Error(`OpenWeatherError: ${nearbyRes.statusText}`);
+      const nearbyData = await nearbyRes.json();
+      return new Response(JSON.stringify(nearbyData), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      });
+    }
 
     if (action === 'current_city') {
       apiUrl = `${BASE_URL}/weather?q=${city}&appid=${openweatherApiKey}&units=metric&lang=es`;

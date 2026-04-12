@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import CountrySearch from './CountrySearch';
 import { WORLD_CAPITALS } from '../utils/worldCapitals';
+import { fetchNearby, fetchBulkWeather } from '../../../lib/weatherApi';
 
 // Arreglo temporal de iconos por defecto de Leaflet para React Vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -49,8 +50,6 @@ function ChangeMapView({ center, zoom }) {
   return null;
 }
 
-const API_KEY = '9881114244119304be93da42d1185931';
-const BASE_URL = 'https://api.openweathermap.org/data/2.5';
 const GEO_API_URL = 'https://countriesnow.space/api/v0.1/countries/states';
 
 export default function WeatherRankings() {
@@ -98,11 +97,10 @@ export default function WeatherRankings() {
         try {
           const { latitude, longitude } = position.coords;
           setMyLocation({ lat: latitude, lon: longitude });
-          
-          // Pide hasta 15 localidades cercanas para tener un buen margen de filtrado top 5
-          const res = await fetch(`${BASE_URL}/find?lat=${latitude}&lon=${longitude}&cnt=15&appid=${API_KEY}&units=metric&lang=es`);
-          const data = await res.json();
-          
+
+          // Pide hasta 15 localidades cercanas via Edge Function (sin exponer API key)
+          const data = await fetchNearby(latitude, longitude, 15);
+
           if (data.cod === "200" && data.list) {
             const mappedData = data.list.map((city, index) => ({
               id: city.id || Math.random(),
@@ -115,9 +113,9 @@ export default function WeatherRankings() {
               description: city.weather?.[0]?.description || '',
               lat: city.coord?.lat,
               lon: city.coord?.lon,
-              originalIndex: index // Guardamos para saber su posición cruda
+              originalIndex: index
             }));
-            
+
             // Filtramos duplicados por nombre si existieran
             const uniqueData = Array.from(new Map(mappedData.map(item => [item.name, item])).values());
             setWeatherData(uniqueData);
@@ -149,31 +147,21 @@ export default function WeatherRankings() {
 
     setLoading(true);
     let allProcessedData = [];
-    const CHUNK_SIZE = 20; // Paginación optimizada a bloques de 20 para menor latencia (rate limit tolerance)
+    const CHUNK_SIZE = 20; // Enviamos lotes de 20 a la Edge Function
     try {
       for (let i = 0; i < citiesToFetch.length; i += CHUNK_SIZE) {
         const chunk = citiesToFetch.slice(i, i + CHUNK_SIZE);
-        
-        setLoadingProgress({ 
-          current: Math.min(i + CHUNK_SIZE, citiesToFetch.length), 
-          total: citiesToFetch.length 
+
+        setLoadingProgress({
+          current: Math.min(i + CHUNK_SIZE, citiesToFetch.length),
+          total: citiesToFetch.length
         });
 
-        const promises = chunk.map(loc => {
-          const isObj = typeof loc === 'object';
-          const queryCity = isObj ? loc.city : loc;
-          const displayCountry = isObj ? loc.country : null;
+        // Una sola llamada a la Edge Function por lote (API key segura en el servidor)
+        const results = await fetchBulkWeather(chunk);
 
-          return fetch(`${BASE_URL}/weather?q=${queryCity}&appid=${API_KEY}&units=metric&lang=es`)
-            .then(res => res.json())
-            .then(data => ({ ...data, _displayCountry: displayCountry, _queryCity: queryCity }))
-            .catch(() => null);
-        });
-        
-        const results = await Promise.all(promises);
-        
-        // Transformación y filtrado inmediato para no saturar memoria del navegador
-        const chunkProcessed = results
+        // Transformación y filtrado inmediato
+        const chunkProcessed = (results || [])
           .filter(data => data && data.cod === 200)
           .map(city => ({
             id: city.id || Math.random(),
@@ -188,13 +176,8 @@ export default function WeatherRankings() {
           }));
 
         allProcessedData = [...allProcessedData, ...chunkProcessed];
-
-        // Delay ultracorto (50ms) para evitar Rate Limit superado y a su vez completarlo en < 2 segundos
-        if (i + CHUNK_SIZE < citiesToFetch.length) {
-          await new Promise(resolve => setTimeout(resolve, 50));
-        }
       }
-      
+
       setWeatherData(allProcessedData);
     } catch (error) {
       console.error("Error fetching massive ranking data:", error);
