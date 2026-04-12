@@ -2,9 +2,10 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const ALLOWED_ORIGINS = [
-  'http://localhost:5173', // Servidor de pruebas web
-  'http://localhost',      // Servidor en algunos móviles
-  'capacitor://localhost', // Servidor de Capacitor (Android/iOS)
+  'http://localhost:5173',                              // Servidor de pruebas web
+  'http://localhost',                                   // Servidor en algunos móviles
+  'capacitor://localhost',                              // Servidor de Capacitor (Android/iOS)
+  'https://weather-flow-hybrid-app.vercel.app',        // Producción en Vercel
 ];
 
 function getCorsHeaders(req: Request) {
